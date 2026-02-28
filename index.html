@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <title>KBS TV - Ajuste Final</title>
+    <title>KBS TV - Player Totem</title>
 
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
@@ -13,32 +13,11 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #000; overflow: hidden; width: 100vw; height: 100vh; }
-        
         .admin-layer { position: absolute; overflow: hidden; display: block; }
-
-        /* --- 1. AJUSTE DO PLAYER (PARA NÃO CORTAR) --- */
         .video-js { width: 100% !important; height: 100% !important; }
         .vjs-tech { object-fit: fill !important; } 
-
-        /* --- 2. AJUSTE DA GRADE (PARA APARECER TODOS) --- */
-        .grid { 
-            display: grid; 
-            grid-template-columns: repeat(4, 1fr); 
-            grid-template-rows: repeat(4, 1fr); 
-            gap: 1px; 
-            background: #000;
-            width: 100%;
-            height: 100%;
-        }
-        .quadrado { 
-            background: #050505; 
-            overflow: hidden; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center;
-            width: 100%;
-            height: 100%;
-        }
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 1px; background: #000; width: 100%; height: 100%; }
+        .quadrado { background: #050505; overflow: hidden; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
         img { width: 100%; height: 100%; object-fit: fill; display: block; }
     </style>
 </head>
@@ -52,14 +31,16 @@
     </div>
 
 <script>
-    // Inicialização dos Firebases (Isolados)
+    // FIREBASE MARKETING (Fotos/Anúncios)
     const mkt = firebase.initializeApp({
         apiKey: "AIzaSyBh-dhSMEgVO0dPyPdE-JAtPb2LeKaq9og",
         databaseURL: "https://marketing-19f3d-default-rtdb.firebaseio.com"
     }, "mktApp").database();
 
+    // NOVO FIREBASE LAYOUT (Posições e Tamanhos)
     const lay = firebase.initializeApp({ 
-        databaseURL: "https://totem-full-tv-default-rtdb.firebaseio.com" 
+        apiKey: "AIzaSyDB_upDIT_fPCFvh9rcldaQu-SkbW1usFs",
+        databaseURL: "https://totem-full-tv2-default-rtdb.firebaseio.com" 
     }, "layApp").database();
 
     // Players
@@ -67,15 +48,14 @@
     const p2 = videojs('vid2', { controls: false, autoplay: true, loop: true });
     p1.src({ src: "https://srv3.zcast.com.br/kbstv/kbstv/playlist.m3u8", type: "application/x-mpegURL" });
 
-    // Lógica da Grade (Garante 16 espaços)
+    // Grade de 16 espaços
     let anuncios = [];
     let slideIdx = Array(17).fill(0);
     const grade = document.getElementById('gradePrincipal');
     for(let i=1; i<=16; i++) { grade.innerHTML += `<div class="quadrado" id="q${i}"></div>`; }
 
     mkt.ref('anuncios').on('value', snap => {
-        anuncios = []; 
-        snap.forEach(c => { anuncios.push(c.val()); });
+        anuncios = []; snap.forEach(c => { anuncios.push(c.val()); });
         atualizar(); 
     });
 
@@ -93,7 +73,7 @@
     setInterval(atualizar, 1000);
     setInterval(() => { for(let i=1; i<=16; i++) slideIdx[i]++; atualizar(); }, 15000);
 
-    // Sincronia Admin
+    // Sincronia de Layout (Lendo do novo banco tv2)
     lay.ref('layout_totem').on('value', snap => {
         const s = snap.val(); if(!s) return;
         const mover = (id, d) => {
