@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <title>KBS TV - Ajuste Final</title>
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; overflow: hidden; width: 100vw; height: 100vh; }
+        
+        .admin-layer { position: absolute; overflow: hidden; display: block; }
+
+        /* --- 1. AJUSTE DO PLAYER (PARA NÃO CORTAR) --- */
+        .video-js { width: 100% !important; height: 100% !important; }
+        .vjs-tech { object-fit: fill !important; } 
+
+        /* --- 2. AJUSTE DA GRADE (PARA APARECER TODOS) --- */
+        .grid { 
+            display: grid; 
+            grid-template-columns: repeat(4, 1fr); 
+            grid-template-rows: repeat(4, 1fr); 
+            gap: 1px; 
+            background: #000;
+            width: 100%;
+            height: 100%;
+        }
+        .quadrado { 
+            background: #050505; 
+            overflow: hidden; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+        img { width: 100%; height: 100%; object-fit: fill; display: block; }
+    </style>
+</head>
+<body onclick="p1.play(); p2.play(); p1.muted(false);">
+
+    <div id="v-layer" class="admin-layer"><video id="vid1" class="video-js vjs-default-skin" playsinline muted autoplay></video></div>
+    <div id="vb-layer" class="admin-layer"><video id="vid2" class="video-js vjs-default-skin" playsinline muted loop autoplay></video></div>
+    
+    <div id="g-layer" class="admin-layer">
+        <div class="grid" id="gradePrincipal"></div>
+    </div>
+
+<script>
+    // Inicialização dos Firebases (Isolados)
+    const mkt = firebase.initializeApp({
+        apiKey: "AIzaSyBh-dhSMEgVO0dPyPdE-JAtPb2LeKaq9og",
+        databaseURL: "https://marketing-19f3d-default-rtdb.firebaseio.com"
+    }, "mktApp").database();
+
+    const lay = firebase.initializeApp({ 
+        databaseURL: "https://totem-full-tv-default-rtdb.firebaseio.com" 
+    }, "layApp").database();
+
+    // Players
+    const p1 = videojs('vid1', { controls: false, autoplay: true });
+    const p2 = videojs('vid2', { controls: false, autoplay: true, loop: true });
+    p1.src({ src: "https://srv3.zcast.com.br/kbstv/kbstv/playlist.m3u8", type: "application/x-mpegURL" });
+
+    // Lógica da Grade (Garante 16 espaços)
+    let anuncios = [];
+    let slideIdx = Array(17).fill(0);
+    const grade = document.getElementById('gradePrincipal');
+    for(let i=1; i<=16; i++) { grade.innerHTML += `<div class="quadrado" id="q${i}"></div>`; }
+
+    mkt.ref('anuncios').on('value', snap => {
+        anuncios = []; 
+        snap.forEach(c => { anuncios.push(c.val()); });
+        atualizar(); 
+    });
+
+    function atualizar() {
+        const h = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', hour12: false, timeZone: 'America/Sao_Paulo'});
+        const d = new Date().getDay();
+        for(let i=1; i<=16; i++) {
+            const box = document.getElementById(`q${i}`);
+            const ativos = anuncios.filter(a => parseInt(a.pos) === i && a.days.includes(d) && (h >= a.start && h <= a.end));
+            if (ativos.length > 0) {
+                box.innerHTML = `<img src="${ativos[slideIdx[i] % ativos.length].url}">`;
+            } else { box.innerHTML = ""; }
+        }
+    }
+    setInterval(atualizar, 1000);
+    setInterval(() => { for(let i=1; i<=16; i++) slideIdx[i]++; atualizar(); }, 15000);
+
+    // Sincronia Admin
+    lay.ref('layout_totem').on('value', snap => {
+        const s = snap.val(); if(!s) return;
+        const mover = (id, d) => {
+            const el = document.getElementById(id);
+            if(!d || !el) return;
+            el.style.left = d.x + "%"; el.style.top = d.y + "%";
+            el.style.width = d.w + "%"; el.style.height = d.h + "%";
+            el.style.transform = `rotate(${d.r || 0}deg)`;
+        };
+        mover('v-layer', s.video);
+        mover('g-layer', s.grade);
+        mover('vb-layer', s.vidBanner);
+
+        if(s.vidBanner?.url && p2.src() !== s.vidBanner.url) {
+            p2.src({ src: s.vidBanner.url, type: s.vidBanner.url.includes('m3u8') ? "application/x-mpegURL" : "video/mp4" });
+        }
+    });
+</script>
+</body>
+</html>
