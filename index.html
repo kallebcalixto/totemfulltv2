@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <title>KBS TV - Player Totem</title>
+    <title>KBS TV - Player Totem (Anti-Trava)</title>
 
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
@@ -19,17 +19,9 @@
         .grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 1px; background: #000; width: 100%; height: 100%; }
         .quadrado { background: #050505; overflow: hidden; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
         img { width: 100%; height: 100%; object-fit: fill; display: block; }
-        
-        #camada-interacao {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 9999; display: flex; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.01); pointer-events: none;
-        }
     </style>
 </head>
 <body onclick="liberarGeral()">
-
-    <div id="camada-interacao"></div>
 
     <div id="v-layer" class="admin-layer">
         <video id="vid1" class="video-js vjs-default-skin" playsinline autoplay></video>
@@ -44,47 +36,57 @@
     </div>
 
 <script>
-    // FIREBASE MARKETING (Fotos/Anúncios)
+    // Configurações Firebase
     const mkt = firebase.initializeApp({
         apiKey: "AIzaSyBh-dhSMEgVO0dPyPdE-JAtPb2LeKaq9og",
         databaseURL: "https://marketing-19f3d-default-rtdb.firebaseio.com"
     }, "mktApp").database();
 
-    // FIREBASE LAYOUT (Lendo do banco tv2)
     const lay = firebase.initializeApp({ 
         apiKey: "AIzaSyDB_upDIT_fPCFvh9rcldaQu-SkbW1usFs",
         databaseURL: "https://totem-full-tv2-default-rtdb.firebaseio.com" 
     }, "layApp").database();
 
-    // Players: p1 configurado para áudio ativo
-    const p1 = videojs('vid1', { 
-        controls: false, 
-        autoplay: 'any', 
-        muted: false 
-    });
-    
+    // Players
+    const p1 = videojs('vid1', { controls: false, autoplay: 'any', muted: false });
     const p2 = videojs('vid2', { controls: false, autoplay: true, loop: true, muted: true });
+    
+    const streamUrl = "https://srv3.zcast.com.br/kbstv/kbstv/playlist.m3u8";
+    p1.src({ src: streamUrl, type: "application/x-mpegURL" });
 
-    p1.src({ src: "https://srv3.zcast.com.br/kbstv/kbstv/playlist.m3u8", type: "application/x-mpegURL" });
+    // --- LÓGICA ANTI-TRAVA (Watchdog) ---
+    let lastTime = -1;
+    let freezeCount = 0;
 
-    // Função para forçar áudio e play após interação
+    setInterval(() => {
+        let currentTime = p1.currentTime();
+        if (currentTime === lastTime && !p1.paused()) {
+            freezeCount++;
+            if (freezeCount > 2) { // Se ficar parado por ~10 segundos (2 ciclos de 5s)
+                console.log("Detectado travamento. Reiniciando stream...");
+                p1.src({ src: streamUrl, type: "application/x-mpegURL" });
+                p1.play();
+                freezeCount = 0;
+            }
+        } else {
+            freezeCount = 0;
+        }
+        lastTime = currentTime;
+    }, 5000); 
+    // ------------------------------------
+
     function liberarGeral() {
         p1.muted(false);
         p1.play();
         p2.play();
-        const camada = document.getElementById('camada-interacao');
-        if(camada) camada.style.display = 'none';
-        console.log("Áudio e Vídeo sincronizados com sucesso.");
+        console.log("Interação detectada: Áudio liberado.");
     }
 
-    // Tentar play automático imediato via Script
     p1.ready(() => {
-        p1.play().catch(() => {
-            console.warn("Aguardando interação do usuário para ativar som.");
-        });
+        p1.play().catch(() => console.log("Aguardando clique para liberar áudio."));
     });
 
-    // Grade de 16 espaços
+    // Grade de Anúncios
     let anuncios = [];
     let slideIdx = Array(17).fill(0);
     const grade = document.getElementById('gradePrincipal');
