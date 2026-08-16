@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <title>KBS TV - Player Totem (Anti-Trava)</title>
+    <title>KBS TV - Player Totem (Anti-Trava Corrigido)</title>
 
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
@@ -47,11 +47,17 @@
         databaseURL: "https://totem-full-tv2-default-rtdb.firebaseio.com" 
     }, "layApp").database();
 
-    // Players
-    const p1 = videojs('vid1', { controls: false, autoplay: 'any', muted: false });
+    // CORREÇÃO CRUCIAL: Iniciar mudo por padrão para o navegador autorizar o autoplay no Wix/GitHub
+    const p1 = videojs('vid1', { 
+        controls: false, 
+        autoplay: true, 
+        muted: true, // Começa mudo para passar na restrição do browser
+        html5: { hls: { overrideNative: true } }
+    });
+    
     const p2 = videojs('vid2', { controls: false, autoplay: true, loop: true, muted: true });
     
-    const streamUrl = "http://157.245.131.127/hls/canal1/stream.m3u8";
+    const streamUrl = "https://srv3.zcast.com.br/kbstv/kbstv/playlist.m3u8";
     p1.src({ src: streamUrl, type: "application/x-mpegURL" });
 
     // --- LÓGICA ANTI-TRAVA (Watchdog) ---
@@ -62,10 +68,10 @@
         let currentTime = p1.currentTime();
         if (currentTime === lastTime && !p1.paused()) {
             freezeCount++;
-            if (freezeCount > 2) { // Se ficar parado por ~10 segundos (2 ciclos de 5s)
+            if (freezeCount > 2) { 
                 console.log("Detectado travamento. Reiniciando stream...");
                 p1.src({ src: streamUrl, type: "application/x-mpegURL" });
-                p1.play();
+                p1.play().catch(e => console.log("Erro no reload do watch:", e));
                 freezeCount = 0;
             }
         } else {
@@ -76,14 +82,18 @@
     // ------------------------------------
 
     function liberarGeral() {
-        p1.muted(false);
+        // Ao clicar na tela, desmuta o player principal e garante o play
+        if (p1.muted()) {
+            p1.muted(false);
+            p1.volume(1);
+            console.log("Interação detectada: Áudio liberado.");
+        }
         p1.play();
         p2.play();
-        console.log("Interação detectada: Áudio liberado.");
     }
 
     p1.ready(() => {
-        p1.play().catch(() => console.log("Aguardando clique para liberar áudio."));
+        p1.play().catch(() => console.log("Aguardando interação do usuário para iniciar o player."));
     });
 
     // Grade de Anúncios
