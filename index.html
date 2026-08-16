@@ -51,7 +51,7 @@
     const p1 = videojs('vid1', { controls: false, autoplay: 'any', muted: false });
     const p2 = videojs('vid2', { controls: false, autoplay: true, loop: true, muted: true });
     
-    const streamUrl = "https://srv3.zcast.com.br/kbstv/kbstv/playlist.m3u8";
+    const streamUrl = "http://157.245.131.127/hls/canal1/stream.m3u8";
     p1.src({ src: streamUrl, type: "application/x-mpegURL" });
 
     // --- LÓGICA ANTI-TRAVA (Watchdog) ---
