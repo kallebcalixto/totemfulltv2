@@ -14,6 +14,10 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #000; overflow: hidden; width: 100vw; height: 100vh; cursor: pointer; }
         .admin-layer { position: absolute; overflow: hidden; display: block; }
+        
+        /* Player via Iframe Universal do Servidor (Zero CORS / Windows e Manjaro) */
+        .video-iframe { width: 100%; height: 100%; border: none; background: #000; }
+
         .video-js { width: 100% !important; height: 100% !important; }
         .vjs-tech { object-fit: fill !important; } 
         .grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 1px; background: #000; width: 100%; height: 100%; }
@@ -23,8 +27,9 @@
 </head>
 <body onclick="liberarGeral()">
 
+    <!-- Player Principal via Iframe Direto do Servidor Nginx -->
     <div id="v-layer" class="admin-layer">
-        <video id="vid1" class="video-js vjs-default-skin" playsinline autoplay></video>
+        <iframe class="video-iframe" src="https://live.kbstvpro.com.br/player.html" allow="autoplay; fullscreen; encrypted-media"></iframe>
     </div>
     
     <div id="vb-layer" class="admin-layer">
@@ -47,54 +52,11 @@
         databaseURL: "https://totem-full-tv2-default-rtdb.firebaseio.com" 
     }, "layApp").database();
 
-    // CORREÇÃO CRUCIAL: Iniciar mudo por padrão para o navegador autorizar o autoplay no Wix/GitHub
-    const p1 = videojs('vid1', { 
-        controls: false, 
-        autoplay: true, 
-        muted: true, // Começa mudo para passar na restrição do browser
-        html5: { hls: { overrideNative: true } }
-    });
-    
     const p2 = videojs('vid2', { controls: false, autoplay: true, loop: true, muted: true });
-    
-    const streamUrl = "https://live.kbstvpro.com.br/live/canal1.m3u8";
-    p1.src({ src: streamUrl, type: "application/x-mpegURL" });
-
-    // --- LÓGICA ANTI-TRAVA (Watchdog) ---
-    let lastTime = -1;
-    let freezeCount = 0;
-
-    setInterval(() => {
-        let currentTime = p1.currentTime();
-        if (currentTime === lastTime && !p1.paused()) {
-            freezeCount++;
-            if (freezeCount > 2) { 
-                console.log("Detectado travamento. Reiniciando stream...");
-                p1.src({ src: streamUrl, type: "application/x-mpegURL" });
-                p1.play().catch(e => console.log("Erro no reload do watch:", e));
-                freezeCount = 0;
-            }
-        } else {
-            freezeCount = 0;
-        }
-        lastTime = currentTime;
-    }, 5000); 
-    // ------------------------------------
 
     function liberarGeral() {
-        // Ao clicar na tela, desmuta o player principal e garante o play
-        if (p1.muted()) {
-            p1.muted(false);
-            p1.volume(1);
-            console.log("Interação detectada: Áudio liberado.");
-        }
-        p1.play();
         p2.play();
     }
-
-    p1.ready(() => {
-        p1.play().catch(() => console.log("Aguardando interação do usuário para iniciar o player."));
-    });
 
     // Grade de Anúncios
     let anuncios = [];
